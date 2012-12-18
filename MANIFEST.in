@@ -1,0 +1,3 @@
+include scripts/ssh-authorizer
+include README.txt
+include setup.cfg

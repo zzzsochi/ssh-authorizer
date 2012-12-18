@@ -1,0 +1,5 @@
+#! /usr/bin/env python3
+
+from ssh_authorizer.__main__ import main
+
+main()
