@@ -53,4 +53,4 @@ ssh-authorizer del user@host zzz@macbook
 
 get --short:  Like "get", but without key hashes.
 
-Human-readible errors.
+Human readable errors.
