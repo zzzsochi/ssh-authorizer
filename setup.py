@@ -2,7 +2,7 @@ from setuptools import setup
 
 setup(
         name='ssh_authorizer',
-        version='1.0',
+        version='1.1',
         description='Manager for remote ~/.ssh/authorized_keys.',
         author='Alexander Zelenyak aka ZZZ',
         author_email='zzz.sochi@gmail.com',
