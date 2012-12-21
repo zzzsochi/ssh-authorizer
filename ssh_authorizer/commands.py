@@ -1,3 +1,7 @@
+import sys
+
+import sh
+
 from .helpers import SSHController, SCPController
 from .helpers import get_authorized_keys, set_authorized_keys
 from .helpers import load_local_keys
@@ -10,14 +14,26 @@ def help():
 
 def get(user, host, port, raw):
     if not raw:
-        keys = [k for k in get_authorized_keys(user=user, host=host, port=port) if k]
-        print("Found {} keys:\n".format(len(keys)))
+        try:
+            keys = [k for k in get_authorized_keys(user=user, host=host, port=port) if k]
+        except sh.ErrorReturnCode_1:
+            sys.exit(1)
+
+        if keys:
+            print("Found {} keys:\n".format(len(keys)))
+        else:
+            print("Not found keys.")
+
         for n, key in enumerate(keys):
             if key:
                 print('{}: {}'.format(n + 1, key))
 
     else:
-        keys = get_authorized_keys(user=user, host=host, port=port)
+        try:
+            keys = get_authorized_keys(user=user, host=host, port=port)
+        except sh.ErrorReturnCode_1:
+            sys.exit(1)
+
         print('\n'.join(keys))
 
     return
@@ -27,7 +43,11 @@ def add(user, host, port, key_files):
     local_keys = load_local_keys(key_files)
 
     ssh_controller = SSHController(user, host, port)
-    remote_keys = get_authorized_keys(controller=ssh_controller)
+
+    try:
+        remote_keys = get_authorized_keys(controller=ssh_controller)
+    except sh.ErrorReturnCode_1:
+        sys.exit(1)
 
     new_keys = []
 
@@ -43,7 +63,10 @@ def add(user, host, port, key_files):
         scp_controller = SCPController(user, host, port)
         scp_controller.password = ssh_controller.password
 
-        set_authorized_keys(keys, controller=scp_controller)
+        try:
+            set_authorized_keys(keys, controller=scp_controller)
+        except sh.ErrorReturnCode_1:
+            sys.exit(1)
 
 
 def delete(user, host, port, key_ids):
