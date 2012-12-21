@@ -40,11 +40,6 @@ ssh-authorizer test user@host key.pub key2.pub
 
 TODO:
 
-Work with known_hosts:
-    The authenticity of host 'bla-bla-bla' can't be established.
-    RSA key fingerprint is 98:1e:38:bla:bla:bla:c7:e5:fe.
-    Are you sure you want to continue connecting (yes/no)?
-
 ssh-authorizer del user@host
     Delete your "~/ssh/id_rsa.pub" from remote "~/ssh/authorized_keys".
 

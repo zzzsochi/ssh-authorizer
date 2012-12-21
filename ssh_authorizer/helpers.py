@@ -100,7 +100,11 @@ class Controller(object):
 
 class SSHController(Controller):
     def __call__(self, *args, **kwargs):
-        self.process = ssh('{}@{}'.format(self.user, self.host), '-p', self.port,
+        self.process = ssh(
+                            '-o UserKnownHostsFile=/dev/null',
+                            '-o StrictHostKeyChecking=no',
+                            '-o LogLevel=quiet',
+                            '{}@{}'.format(self.user, self.host), '-p', self.port,
                             *args,
                             _out=self.out_iteract, _out_bufsize=0, _tty_in=True,
                             _err=self.err_iteract, **kwargs)
@@ -111,6 +115,9 @@ class SSHController(Controller):
 class SCPController(Controller):
     def __call__(self, local_file, remote_file, **kwargs):
         self.process = scp(
+                            '-o UserKnownHostsFile=/dev/null',
+                            '-o StrictHostKeyChecking=no',
+                            '-o LogLevel=quiet',
                             '-P', self.port,
                             local_file,
                             '{}@{}:{}'.format(self.user, self.host, remote_file),
