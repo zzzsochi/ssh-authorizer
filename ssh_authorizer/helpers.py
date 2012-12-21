@@ -56,8 +56,8 @@ def load_local_keys(key_files):
 
 
 class Controller(object):
-    out = ''
-    error = ''
+    out = b''
+    error = b''
     password = None
     user = None
     host = None
@@ -72,14 +72,20 @@ class Controller(object):
         logging.info('run command: "{}"'.format(self.process.ran))
 
     def out_iteract(self, char, stdin):
-        self.out += char
+        if isinstance(char, str):
+            self.out += char.encode('utf8')
+        else:
+            self.out += char
 
-        if self.out.endswith('password: '):
+        if self.out.decode('utf-8', errors='ignore').endswith('password: '):
             self.clear()
             stdin.put(self.get_password() + '\n')
 
     def err_iteract(self, char, stdin):
-        self.error += char
+        if isinstance(char, str):
+            self.out += char.encode('utf8')
+        else:
+            self.out += char
 
     def get_password(self):
         logging.debug('request password')
@@ -91,8 +97,8 @@ class Controller(object):
         return self.password
 
     def clear(self):
-        self.out = ''
-        self.error = ''
+        self.out = b''
+        self.error = b''
 
     def wait(self):
         return self.process.wait()
@@ -137,10 +143,11 @@ def get_authorized_keys(controller=None, user=None, host=None, port=None):
         controller('cat ~/.ssh/authorized_keys')
         controller.wait()
     except Exception:
-        logging.critical(controller.out)
+        logging.critical(controller.out.decode('utf8', errors='ignore'))
         raise
 
-    return [line.strip() for line in controller.out.split('\n')]
+    out = controller.out.decode('utf8', errors='ignore')
+    return [line.strip() for line in out.split('\n')]
 
 
 def set_authorized_keys(keys, controller=None, user=None, host=None, port=None):
@@ -153,12 +160,12 @@ def set_authorized_keys(keys, controller=None, user=None, host=None, port=None):
         data = '\n'.join(keys)
         tmp.write(data.encode('utf8'))
 
-        if data[-1] != '\n':
+        if data and data[-1] != '\n':
             tmp.write(b'\n')
 
         try:
             controller(tmp.name, '~/.ssh/authorized_keys')
             controller.wait()
         except Exception:
-            logging.critical(controller.out)
+            logging.critical(controller.out.decode('utf8', errors='ignore'))
             raise
