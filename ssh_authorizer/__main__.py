@@ -13,7 +13,7 @@ import logging
 from .helpers import parse_ssh_string
 from .commands import help, get, add, delete, test
 
-logging.basicConfig(level=logging.ERROR)
+logging.basicConfig(format='%(message)s', level=logging.INFO)
 
 commands = ['help', 'get', 'add', 'del', 'test']
 

@@ -3,7 +3,11 @@ import logging
 from getpass import getpass
 from tempfile import NamedTemporaryFile
 
-from sh import ssh, scp
+from sh import ssh, scp, ErrorReturnCode_1
+
+
+class NoSuchFileError(Exception):
+    pass
 
 
 def parse_ssh_string(ssh_string):
@@ -40,9 +44,11 @@ def parse_ssh_string(ssh_string):
 
 
 def load_local_keys(key_files):
-    logging.debug('load local keys: {}'.format(key_files))
     if not key_files:
         key_files.append(os.path.expanduser('~/.ssh/id_rsa.pub'))
+        logging.info('Loading local id_rsa.pub')
+    else:
+        logging.info('Loading keys: {}'.format(', '.join(key_files)))
 
     local_keys = {}
 
@@ -51,17 +57,15 @@ def load_local_keys(key_files):
             key_data = f.read().strip()
             local_keys[key_file] = key_data
 
-    logging.debug('loaded local keys: {}'.format(local_keys))
     return local_keys
 
 
 class Controller(object):
     out = b''
-    error = b''
-    password = None
     user = None
     host = None
     port = 22
+    password = None
 
     def __init__(self, user, host, port=22):
         self.user = user
@@ -69,29 +73,25 @@ class Controller(object):
         self.port = port or 22
 
     def __call__(self, *args, **kwargs):
-        logging.info('run command: "{}"'.format(self.process.ran))
+        logging.debug('run command: "{}"'.format(self.process.ran))
 
-    def out_iteract(self, char, stdin):
+    def out_iteract(self, char, stdin, process):
         if isinstance(char, str):
             self.out += char.encode('utf8')
         else:
             self.out += char
 
-        if self.out.decode('utf-8', errors='ignore').endswith('password: '):
+        out = self.out.decode('utf-8', errors='ignore')
+
+        if out.endswith('password: '):
             self.clear()
             stdin.put(self.get_password() + '\n')
-
-    def err_iteract(self, char, stdin):
-        if isinstance(char, str):
-            self.out += char.encode('utf8')
-        else:
-            self.out += char
 
     def get_password(self):
         logging.debug('request password')
 
         if not self.password:
-            prompt = 'Need password for {}@{}:{}: '.format(self.user, self.host, self.port)
+            prompt = '{c.user}@{c.host}:{c.port} - need password: '.format(c=self)
             self.password = getpass(prompt)
 
         return self.password
@@ -105,17 +105,28 @@ class Controller(object):
 
 
 class SSHController(Controller):
+    no_such_file_error = False
+
     def __call__(self, *args, **kwargs):
         self.process = ssh(
                             '-o UserKnownHostsFile=/dev/null',
                             '-o StrictHostKeyChecking=no',
                             '-o LogLevel=quiet',
                             '{}@{}'.format(self.user, self.host), '-p', self.port,
-                            *args,
+                            'LANG=C', *args,
                             _out=self.out_iteract, _out_bufsize=0, _tty_in=True,
-                            _err=self.err_iteract, **kwargs)
+                            **kwargs)
 
         super().__call__(*args, **kwargs)
+
+    def out_iteract(self, char, stdin, process):
+        super().out_iteract(char, stdin, process)
+
+        out = self.out.decode('utf-8', errors='ignore')
+
+        if out.endswith('No such file or directory'):
+            self.no_such_file_error = True
+            process.kill()
 
 
 class SCPController(Controller):
@@ -128,20 +139,26 @@ class SCPController(Controller):
                             local_file,
                             '{}@{}:{}'.format(self.user, self.host, remote_file),
                             _out=self.out_iteract, _out_bufsize=0, _tty_in=True,
-                            _err=self.err_iteract, **kwargs)
+                            **kwargs)
 
         super().__call__(local_file, remote_file, **kwargs)
 
 
-def get_authorized_keys(controller=None, user=None, host=None, port=None):
-    if not controller and (user and host):
-        controller = SSHController(user, host, port)
-    elif not controller:
-        raise ValueError('Must set controller or user and host.')
+def get_authorized_keys(controller):
+    logging.info('{c.user}@{c.host}:{c.port} - getting authorized_keys'.format(c=controller))
 
     try:
+        controller.clear()
         controller('cat ~/.ssh/authorized_keys')
         controller.wait()
+
+    except ErrorReturnCode_1:
+        if controller.no_such_file_error:
+            raise NoSuchFileError()
+        else:
+            logging.critical(controller.out.decode('utf8', errors='ignore'))
+            raise
+
     except Exception:
         logging.critical(controller.out.decode('utf8', errors='ignore'))
         raise
@@ -150,11 +167,28 @@ def get_authorized_keys(controller=None, user=None, host=None, port=None):
     return [line.strip() for line in out.split('\n')]
 
 
-def set_authorized_keys(keys, controller=None, user=None, host=None, port=None):
-    if not controller and (user and host):
-        controller = SCPController(user, host, port)
-    elif not controller:
-        raise ValueError('Must set controller or user and host.')
+def create_authorized_keys_file(controller):
+    logging.info('{c.user}@{c.host}:{c.port} - creating ~/.ssh'.format(c=controller))
+
+    try:
+        controller.clear()
+        controller('mkdir -p ~/.ssh')
+        controller.wait()
+
+    except ErrorReturnCode_1:
+        if controller.no_such_file_error:
+            raise NoSuchFileError()
+        else:
+            logging.critical(controller.out.decode('utf8', errors='ignore'))
+            raise
+
+    except Exception:
+        logging.critical(controller.out.decode('utf8', errors='ignore'))
+        raise
+
+
+def set_authorized_keys(controller, keys):
+    logging.info('{c.user}@{c.host}:{c.port} - writing authorized_keys'.format(c=controller))
 
     with NamedTemporaryFile('w+b', buffering=0) as tmp:
         data = '\n'.join(keys)
@@ -164,6 +198,7 @@ def set_authorized_keys(keys, controller=None, user=None, host=None, port=None):
             tmp.write(b'\n')
 
         try:
+            controller.clear()
             controller(tmp.name, '~/.ssh/authorized_keys')
             controller.wait()
         except Exception:
