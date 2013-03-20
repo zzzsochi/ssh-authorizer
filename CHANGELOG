@@ -1,0 +1,14 @@
+1.3 - 2013-03-20
+
+    * Now works under python 2
+    * Refactoring around argparse
+
+1.2 - 2012-12-21
+
+    * Make beautiful output in the console
+    * Some refactoring
+
+1.1 - 2012-12-21
+
+    * First public release
+    * It's just work
