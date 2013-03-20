@@ -1,3 +1,4 @@
+import sys
 import os
 import logging
 from getpass import getpass
@@ -48,7 +49,7 @@ def load_local_keys(key_files):
         key_files.append(os.path.expanduser('~/.ssh/id_rsa.pub'))
         logging.info('Loading local id_rsa.pub')
     else:
-        logging.info('Loading keys: {}'.format(', '.join(key_files)))
+        logging.info('Loading keys: {0}'.format(', '.join(key_files)))
 
     local_keys = {}
 
@@ -73,7 +74,7 @@ class Controller(object):
         self.port = port or 22
 
     def __call__(self, *args, **kwargs):
-        logging.debug('run command: "{}"'.format(self.process.ran))
+        logging.debug('run command: "{0}"'.format(self.process.ran))
 
     def out_iteract(self, char, stdin, process):
         if isinstance(char, str):
@@ -112,15 +113,16 @@ class SSHController(Controller):
                             '-o UserKnownHostsFile=/dev/null',
                             '-o StrictHostKeyChecking=no',
                             '-o LogLevel=quiet',
-                            '{}@{}'.format(self.user, self.host), '-p', self.port,
+                            '{0}@{1}'.format(self.user, self.host),
+                            '-p', self.port,
                             'LANG=C', *args,
                             _out=self.out_iteract, _out_bufsize=0, _tty_in=True,
                             **kwargs)
 
-        super().__call__(*args, **kwargs)
+        super(SSHController, self).__call__(*args, **kwargs)
 
     def out_iteract(self, char, stdin, process):
-        super().out_iteract(char, stdin, process)
+        super(SSHController, self).out_iteract(char, stdin, process)
 
         out = self.out.decode('utf-8', errors='ignore')
 
@@ -137,11 +139,11 @@ class SCPController(Controller):
                             '-o LogLevel=quiet',
                             '-P', self.port,
                             local_file,
-                            '{}@{}:{}'.format(self.user, self.host, remote_file),
+                            '{0}@{1}:{2}'.format(self.user, self.host, remote_file),
                             _out=self.out_iteract, _out_bufsize=0, _tty_in=True,
                             **kwargs)
 
-        super().__call__(local_file, remote_file, **kwargs)
+        super(SCPController, self).__call__(local_file, remote_file, **kwargs)
 
 
 def get_authorized_keys(controller):
@@ -190,7 +192,12 @@ def create_authorized_keys_file(controller):
 def set_authorized_keys(controller, keys):
     logging.info('{c.user}@{c.host}:{c.port} - writing authorized_keys'.format(c=controller))
 
-    with NamedTemporaryFile('w+b', buffering=0) as tmp:
+    if sys.version_info.major >= 3:
+        buffering = 'buffering'
+    else:
+        buffering = 'bufsize'
+
+    with NamedTemporaryFile('w+b', **{buffering: 0}) as tmp:
         data = '\n'.join(keys)
         tmp.write(data.encode('utf8'))
 

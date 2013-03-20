@@ -10,8 +10,12 @@ setup(
         packages=['ssh_authorizer'],
         scripts=['scripts/ssh-authorizer'],
         install_requires=['sh'],
+        license='BSD',
+        platforms='Unix',
         classifiers=[
                 'Operating System :: Unix',
+                'Programming Language :: Python :: 2',
+                'Programming Language :: Python :: 2.7',
                 'Programming Language :: Python :: 3',
                 'Programming Language :: Python :: 3.3',
         ],

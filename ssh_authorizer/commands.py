@@ -31,13 +31,13 @@ def get(user, host, port, raw):
         if len(keys) == 1:
             print("{c.user}@{c.host}:{c.port} - found one key:\n".format(c=ssh_controller))
         elif keys:
-            print("{c.user}@{c.host}:{c.port} - found {} keys:\n".format(len(keys), c=ssh_controller))
+            print("{c.user}@{c.host}:{c.port} - found {0} keys:\n".format(len(keys), c=ssh_controller))
         else:
             print("{c.user}@{c.host}:{c.port} - not found keys".format(c=ssh_controller))
 
         for n, key in enumerate(keys):
             if key:
-                print('{}: {}'.format(n + 1, key))
+                print('{0}: {1}'.format(n + 1, key))
 
     else:
         ssh_controller = SSHController(user, host, port)
@@ -79,7 +79,7 @@ def add(user, host, port, key_files):
             already_keys.append(key_file)
 
     if already_keys:
-        logging.info('{c.user}@{c.host}:{c.port} - already in authorized_keys: "{}"'
+        logging.info('{c.user}@{c.host}:{c.port} - already in authorized_keys: "{0}"'
                         .format('", "'.join(already_keys), c=ssh_controller))
 
     if new_keys:
@@ -134,6 +134,6 @@ def test(user, host, port, key_files):
     for key_file in key_files:
         ok = local_keys[key_file] in remote_keys
         oks.append(ok)
-        print('{}: {}'.format(key_file, 'ok' if ok else 'fail'))
+        print('{0}: {1}'.format(key_file, 'ok' if ok else 'fail'))
 
     return not int(all(oks))
