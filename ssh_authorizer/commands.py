@@ -3,16 +3,17 @@ import logging
 
 import sh
 
-from .helpers import SSHController, SCPController
-from .helpers import NoSuchFileError
-from .helpers import get_authorized_keys
-from .helpers import set_authorized_keys
-from .helpers import create_authorized_keys_file
-from .helpers import load_local_keys
+from ssh_authorizer.helpers import (SSHController,
+                                    SCPController,
+                                    NoSuchFileError,
+                                    get_authorized_keys,
+                                    set_authorized_keys,
+                                    create_authorized_keys_file,
+                                    load_local_keys)
 
 
 def help():
-    from .__init__ import __doc__ as doc
+    from ssh_authorizer import __doc__ as doc
     print(doc)
 
 
@@ -104,7 +105,7 @@ def delete(user, host, port, key_ids):
         sys.exit(1)
 
     try:
-        for key_id in sorted(key_ids, reverse=True):
+        for key_id in [int(i) for i in sorted(key_ids, reverse=True)]:
             del remote_keys[key_id - 1]
     except IndexError:
         logging.critical('{c.user}@{c.host}:{c.port} - error: not found key indexes'

@@ -7,68 +7,72 @@ ssh-authorizer del zzz@dev.durakov.net id1 id2...
 ssh-authorizer test zzz@dev.durakov.net key1 key2...
 """
 
-import sys
+# import sys
 import logging
+import argparse
 
-from .helpers import parse_ssh_string
-from .commands import help, get, add, delete, test
+import ssh_authorizer.commands as commands
+from ssh_authorizer.helpers import parse_ssh_string
+
 
 logging.basicConfig(format='%(message)s', level=logging.INFO)
 
-commands = ['help', 'get', 'add', 'del', 'test']
+
+def help(args):
+    commands.help()
 
 
-def invalid_command(command):
-    logging.error('command "{}" not implemented: {}'.format(command, sys.argv))
-    print("Usage: ssh_keys {help,get,add,del,test} [--raw] ...")
-    print("{}: invalid command: '{}'".format(sys.argv[0], command))
-    print("Choose from: {}.".format(command, ', '.join(commands)))
-    sys.exit(1)
+def get(args):
+    user, host, port = parse_ssh_string(args.ssh_string[0])
+    commands.get(user, host, port, args.raw)
+
+
+def add(args):
+    user, host, port = parse_ssh_string(args.ssh_string[0])
+    commands.add(user, host, port, args.keys)
+
+
+def delete(args):
+    user, host, port = parse_ssh_string(args.ssh_string[0])
+    commands.delete(user, host, port, args.keys)
+
+
+def test(args):
+    user, host, port = parse_ssh_string(args.ssh_string[0])
+    commands.test(user, host, port, args.keys)
 
 
 def main():
-    argv = sys.argv[1:]
+    parser = argparse.ArgumentParser(description='Manager for remote ~/.ssh/authorized_keys.')
+    subparsers = parser.add_subparsers(dest='cmd', help='Commands')
+    # parser_help = subparsers.add_parser('help', help='')
 
-    if not argv or argv[0] == 'help':
-        logging.debug('command "help" used: {}'.format(sys.argv))
-        help()
-        sys.exit(0)
+    parser_get = subparsers.add_parser('help', help='Display help information')
+    parser_get.set_defaults(func=help)
 
-    command = argv[0]
+    parser_get = subparsers.add_parser('get', help='Display remote authorized_keys')
+    parser_get.add_argument('--raw', action='store_true', help='Display as is.')
+    parser_get.add_argument('ssh_string', nargs=1, help='Remote host')
+    parser_get.set_defaults(func=get)
 
-    if len(argv) < 2:
-        help()
-        sys.exit(1)
+    parser_add = subparsers.add_parser('add', help='Add keys to remote authorized_keys')
+    parser_add.add_argument('ssh_string', nargs=1, help='Remote host')
+    parser_add.add_argument('keys', nargs='*', help='Keys for add')
+    parser_add.set_defaults(func=add)
 
-    if command == 'get':
-        logging.debug('command "get" used: {}'.format(sys.argv))
+    parser_del = subparsers.add_parser('del', help='Delete keys from remote authorized_keys')
+    parser_del.add_argument('ssh_string', nargs=1, help='Remote host')
+    parser_del.add_argument('keys', nargs='+', help='Keys indexes for remote')
+    parser_del.set_defaults(func=delete)
 
-        if len(argv) > 2 and argv[1] == '--raw':
-            raw = True
-            del argv[1]
-        else:
-            raw = False
+    parser_test = subparsers.add_parser('test', help='Test keys exist in remote authorized_keys')
+    parser_test.add_argument('ssh_string', nargs=1, help='Remote host')
+    parser_test.add_argument('keys', nargs='*', help='Keys indexes for remote')
+    parser_test.set_defaults(func=test)
 
-        user, host, port = parse_ssh_string(argv[1])
-        get(user, host, port, raw)
+    args = parser.parse_args()
+    args.func(args)
 
-    elif command == 'add':
-        logging.debug('command "add" used: {}'.format(sys.argv))
-        user, host, port = parse_ssh_string(argv[1])
-        add(user, host, port, argv[2:])
-
-    elif command == 'del':
-        logging.debug('command "del" used: {}'.format(sys.argv))
-        user, host, port = parse_ssh_string(argv[1])
-        delete(user, host, port, [int(i) for i in argv[2:]])
-
-    elif command == 'test':
-        logging.debug('command "test" used: {}'.format(sys.argv))
-        user, host, port = parse_ssh_string(argv[1])
-        test(user, host, port, argv[2:])
-
-    else:
-        invalid_command(command)
 
 if __name__ == '__main__':
     main()
